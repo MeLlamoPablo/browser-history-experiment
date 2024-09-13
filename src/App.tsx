@@ -6,7 +6,7 @@ import "./App.css";
 const randomWord = () => generateMnemonic(english).split(" ").at(0)!;
 
 export default function App() {
-    const previousState = useRef<string[] | null>(null);
+    const previousStack = useRef<string[] | null>(null);
     const [stack, setStack] = useState<string[]>([]);
 
     useEffect(() => {
@@ -20,25 +20,21 @@ export default function App() {
                 return;
             }
 
-            if (
-                previousState.current?.at(-1)?.includes("(duplicate)") &&
-                event.state?.stack?.at(-1)?.includes("(original)")
-            ) {
-                history.back();
-                return;
-            }
+            if (event.state?.stack?.at(-1)?.includes("(duplicate)")) {
+                const isForward =
+                    (event.state?.stack?.length ?? 0) >
+                    (previousStack.current?.length ?? 0);
 
-            if (
-                !previousState.current?.at(-1)?.includes("(original)") &&
-                event.state?.stack?.at(-1)?.includes("(original)")
-            ) {
-                history.forward();
-                return;
+                if (isForward) {
+                    history.forward();
+                } else {
+                    history.back();
+                }
             }
 
             const stack = event.state?.stack ?? [];
             setStack(stack);
-            previousState.current = stack;
+            previousStack.current = stack;
         }
 
         window.addEventListener("popstate", popState);
@@ -66,7 +62,7 @@ export default function App() {
                             "",
                             location.href,
                         );
-                        previousState.current = nextStack;
+                        previousStack.current = nextStack;
                         return nextStack;
                     });
                 }}
@@ -76,7 +72,7 @@ export default function App() {
             <br />
             <br />
             <button
-                disabled={stack.length === 0}
+                disabled={stack.length <= 1}
                 onClick={() => {
                     const stack = [...history.state.stack];
                     const last = stack.pop();
@@ -90,38 +86,35 @@ export default function App() {
             <br />
             <br />
             <button
-                disabled={stack.length === 0}
+                disabled={stack.length <= 1}
                 onClick={() => {
                     const nextStack = [...stack];
                     nextStack.pop();
-                    const last = nextStack.pop();
+                    const last = nextStack.pop() ?? "";
                     history.back();
 
                     setTimeout(() => {
                         let originalStack = [
                             ...nextStack,
-                            `${last} (original)`,
+                            `${last} (duplicate)`,
                         ];
                         history.replaceState(
                             { stack: originalStack },
                             "",
                             location.href,
                         );
-                        previousState.current = originalStack;
+                        previousStack.current = originalStack;
                     }, 50);
 
                     setTimeout(() => {
-                        const duplicateStack = [
-                            ...nextStack,
-                            `${last} (duplicate)`,
-                        ];
+                        const duplicateStack = [...nextStack, last];
                         history.pushState(
                             { stack: duplicateStack },
                             "",
                             location.href,
                         );
                         setStack(duplicateStack);
-                        previousState.current = duplicateStack;
+                        previousStack.current = duplicateStack;
                     }, 100);
                 }}
             >
@@ -130,7 +123,7 @@ export default function App() {
             <br />
             <ul>
                 {stack.map((word, i) => (
-                    <li key={i}>{word}</li>
+                    <li key={i}>{word.replace(" (duplicate)", "")}</li>
                 ))}
             </ul>
         </div>
