@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 import { useEffect, useRef, useState } from "react";
 import { english, generateMnemonic } from "viem/accounts";
 import "./App.css";
@@ -16,6 +17,22 @@ export default function App() {
         function popState(event: PopStateEvent) {
             if (event.state?.stack?.at(-1)?.includes("!")) {
                 history.back();
+                return;
+            }
+
+            if (
+                previousState.current?.at(-1)?.includes("(duplicate)") &&
+                event.state?.stack?.at(-1)?.includes("(original)")
+            ) {
+                history.back();
+                return;
+            }
+
+            if (
+                !previousState.current?.at(-1)?.includes("(original)") &&
+                event.state?.stack?.at(-1)?.includes("(original)")
+            ) {
+                history.forward();
                 return;
             }
 
@@ -78,16 +95,34 @@ export default function App() {
                     const nextStack = [...stack];
                     nextStack.pop();
                     const last = nextStack.pop();
-                    nextStack.push(`${last} (duplicate)`);
                     history.back();
+
                     setTimeout(() => {
-                        history.pushState(
-                            { stack: nextStack },
+                        let originalStack = [
+                            ...nextStack,
+                            `${last} (original)`,
+                        ];
+                        history.replaceState(
+                            { stack: originalStack },
                             "",
                             location.href,
                         );
-                        setStack(nextStack);
+                        previousState.current = originalStack;
                     }, 50);
+
+                    setTimeout(() => {
+                        const duplicateStack = [
+                            ...nextStack,
+                            `${last} (duplicate)`,
+                        ];
+                        history.pushState(
+                            { stack: duplicateStack },
+                            "",
+                            location.href,
+                        );
+                        setStack(duplicateStack);
+                        previousState.current = duplicateStack;
+                    }, 100);
                 }}
             >
                 Block state (push-duplicate method)
